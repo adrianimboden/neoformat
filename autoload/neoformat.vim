@@ -91,12 +91,12 @@ function! s:neoformat(bang, user_input, start_line, end_line) abort
             let stdin_str = join(stdin, "\n")
             let previous_cwd = getcwd()
             execute 'cd ' . expand('%:h')
-            let stdout = split(system(cmd.exe, stdin_str), '\n')
+            let stdout = s:split_output(system(cmd.exe, stdin_str))
             execute 'cd ' . previous_cwd
         else
             call neoformat#utils#log('using tmp file')
             call writefile(stdin, cmd.tmp_file_path)
-            let stdout = split(system(cmd.exe), '\n')
+            let stdout = s:split_output(system(cmd.exe))
         endif
 
         " read from /tmp file if formatter replaces file on format
@@ -176,6 +176,19 @@ endfunction
 
 function! s:deletelines(start, end) abort
     silent! execute a:start . ',' . a:end . 'delete _'
+endfunction
+
+" Splits formatter output into buffer lines, the inverse of joining the buffer
+" with "\n" for stdin. Plain split() drops empty items at the start and end, so
+" an output of just "\n" (e.g. rustfmt on an empty file) became zero lines and
+" emptied the buffer. Keep empty items and drop only the one the final newline
+" creates.
+function! s:split_output(output) abort
+    let lines = split(a:output, '\n', 1)
+    if !empty(lines) && lines[-1] ==# ''
+        call remove(lines, -1)
+    endif
+    return lines
 endfunction
 
 function! neoformat#CompleteFormatters(ArgLead, CmdLine, CursorPos) abort
